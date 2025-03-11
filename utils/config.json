@@ -1,0 +1,68 @@
+{
+    "model": {
+        "hidden_dim": 32,
+        "num_layers": 2,
+        "dropout_rate": 0.2,
+        "batch_norm": true,
+        "layer_norm": false,
+        "residual": true
+    },
+    "training": {
+        "num_epochs": 100,
+        "learning_rate": 0.0005,
+        "weight_decay": 1e-4,
+        "early_stopping": {
+            "enabled": false,
+            "patience": 15,
+            "min_delta": 1e-4
+        },
+        "optimizer": {
+            "type": "AdamW",
+            "beta1": 0.9,
+            "beta2": 0.999,
+            "eps": 1e-8
+        },
+        "train_val_split": 0.8
+    },
+    "analysis": {
+        "perturbation": {
+            "num_trials": 10,
+            "scales": [0.05, 0.1, 0.2, 0.5],
+            "feature_subset": null
+        },
+        "hybrid": {
+            "num_trials": 5,
+            "mask_ratio": 0.5
+        }
+    },
+    "features": {
+        "node_metrics": [
+            "Degree",
+            "Clustering",
+            "NeighborDeg",
+            "Betweenness",
+            "Closeness",
+            "PageRank",
+            "CoreNumber",
+            "LocalEff",
+            "Eigenvector"
+        ],
+        "global_metrics": [
+            "GraphDensity",
+            "AvgClustering", 
+            "AvgPathLength",
+            "DegreeAssortativity",
+            "Transitivity",
+            "ConnectedComponents",
+            "MaxDegree",
+            "MinDegree",
+            "AvgDegree",
+            "GlobalEfficiency"
+        ],
+        "num_nodes": 4,
+        "feature_naming": {
+            "node_prefix": "Node",
+            "separator": "_"
+        }
+    }
+}

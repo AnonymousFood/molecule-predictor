@@ -8,7 +8,7 @@ MODEL_CONFIG = {
 }
 
 TRAINING_CONFIG = {
-    'num_epochs': 100,
+    'num_epochs': 1000,
     'learning_rate': 0.0005,
     'weight_decay': 1e-4,
     'early_stopping': {

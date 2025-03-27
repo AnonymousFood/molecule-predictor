@@ -63,20 +63,27 @@ class GNN(nn.Module):
         
         return self.final_layer(x2)
 
+    #---------------
     # TRAINING CODE
+    #---------------
 
-    def train_model(self, model: nn.Module, data: Data, target_idx: int) -> Tuple[List[Dict], nn.Module]:
+    def train_model(self, model: nn.Module, train_data: Data, val_data: Data, target_idx: int) -> Tuple[List[Dict], nn.Module]:
         self._setup_optimizer(model)
 
         # Ensure original features exist
-        if not hasattr(data, 'original_features'):
-            data.original_features = data.x.clone()
+        if not hasattr(train_data, 'original_features'):
+            train_data.original_features = train_data.x.clone()
+        if not hasattr(val_data, 'original_features'):
+            val_data.original_features = val_data.x.clone()
 
         losses = []
+
         for epoch in range(self.config['num_epochs']):
-            # Training and Validation Steps
-            train_loss = self._train_step(data, target_idx)
-            val_loss = self._val_step(data, target_idx)
+            # Training Step
+            train_loss = self._train_step(train_data, target_idx)
+            
+            # Validation Step with separate validation data
+            val_loss = self._val_step(val_data, target_idx)
 
             # Progress logging
             if epoch % 5 == 0:
@@ -138,10 +145,6 @@ class GNN(nn.Module):
             output = self(data)
             target = data.original_features[target_idx].reshape(-1, 1)
             val_loss = self.criterion(output, target)
-            
-            # Calculate metrics
-            predictions = output.detach().numpy().flatten()
-            targets = target.detach().numpy().flatten()
             
             metrics['val_loss'] = val_loss.item()
             

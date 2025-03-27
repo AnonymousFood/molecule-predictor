@@ -7,7 +7,7 @@ import numpy as np
 from utils.config import FEATURE_NAMES
 
 def find_connected_subgraph(G, size=4):
-    """Find a connected subgraph of specified size"""
+    """Find a connected subgraph of specified size."""
     for component in nx.connected_components(G):
         subgraph = G.subgraph(component)
         if len(subgraph) >= size:
@@ -17,7 +17,7 @@ def find_connected_subgraph(G, size=4):
     return None
 
 def generate_graph(num_nodes=100, edge_prob=0.05):
-    """Generate a random graph ensuring it has at least one connected component of size 4"""
+    """Generate a random graph ensuring it has at least one connected component of a specified size."""
     while True:
         G = nx.erdos_renyi_graph(n=num_nodes, p=edge_prob)
         connected_nodes = find_connected_subgraph(G, size=4)
@@ -26,8 +26,6 @@ def generate_graph(num_nodes=100, edge_prob=0.05):
         
 # Feature Computation
 def compute_features(G, nodes):
-    if nodes is None or len(nodes) != 4:
-        raise ValueError("Must provide exactly 4 nodes for feature computation")
     
     features = []
     n_nodes = len(G)
@@ -47,7 +45,6 @@ def compute_features(G, nodes):
         }
         return normalized
     
-    # Pre-compute and normalize all centrality metrics
     try:
         # Compute and normalize basic centrality metrics
         betweenness = normalize_metric_dict(nx.betweenness_centrality(G))
@@ -134,13 +131,9 @@ def prepare_node_features(G):
         ])
     return features
 
-def prepare_edge_index(G):
-    """Convert NetworkX graph edges to PyG edge index"""
-    return torch.tensor([[e[0], e[1]] for e in G.edges()]).t().contiguous()
-
 def compute_local_efficiency(G, node):
     """
-    Compute local efficiency for a node in the graph
+    Compute local efficiency for a node in G'
     """
     neighbors = list(G.neighbors(node))
     if len(neighbors) < 2:
@@ -160,7 +153,6 @@ def compute_local_efficiency(G, node):
         return 0.0
     
 def process_graph_data(G, selected_nodes, target_idx):
-    """Process graph data with proper node-wise feature variation"""
     # Compute features
     all_features = compute_features(G, selected_nodes)
     
@@ -168,13 +160,13 @@ def process_graph_data(G, selected_nodes, target_idx):
         all_features = torch.tensor(all_features, dtype=torch.float)
     
     num_nodes = len(G)
-    num_features = len(FEATURE_NAMES) - 1
+    num_features = len(FEATURE_NAMES) - 1  # Subtract 1 since we're excluding target
     x = torch.zeros((num_nodes, num_features))
     
-    # Add node-wise variation to features
+    # Individual node-level features
     current_idx = 0
     for i in range(len(FEATURE_NAMES)):
-        if i != target_idx:
+        if i != target_idx:  # Skip target feature
             base_value = all_features[i].clone()
             # Create node-specific variations
             variations = torch.randn(num_nodes) * 0.1  # 10% variation
@@ -184,30 +176,31 @@ def process_graph_data(G, selected_nodes, target_idx):
             x[:, current_idx] = node_values
             current_idx += 1
     
+    # Store target value separately
+    target_value = all_features[target_idx]
+    
     # Prepare edge index
     edge_list = list(G.edges())
     edge_index = torch.tensor(edge_list, dtype=torch.long).t().contiguous()
     
-    # Create data object
+    # Create data object with target value
     data = Data(
         x=x,
         edge_index=edge_index,
+        y=target_value,  # Add target value as y
         original_features=all_features
     )
     
     print("\nData Processing Debug:")
     print(f"Number of nodes: {num_nodes}")
-    print(f"Number of features: {num_features}")
+    print(f"Number of input features: {num_features}")
     print(f"Feature tensor shape: {x.shape}")
     print(f"Edge index shape: {edge_index.shape}")
-    print(f"Sample feature means: {x.mean(dim=0)[:5]}")
-    print(f"Sample feature stds: {x.std(dim=0)[:5]}")
+    print(f"Target value: {target_value}")
     
     return data
 
 def compute_features(G, nodes):
-    if nodes is None or len(nodes) != 4:
-        raise ValueError("Must provide exactly 4 nodes for feature computation")
     
     features = []
     n_nodes = len(G)
@@ -227,7 +220,6 @@ def compute_features(G, nodes):
         }
         return normalized
     
-    # Pre-compute and normalize all centrality metrics
     try:
         # Compute and normalize basic centrality metrics
         betweenness = normalize_metric_dict(nx.betweenness_centrality(G))

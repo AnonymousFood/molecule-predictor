@@ -70,19 +70,13 @@ class GNN(nn.Module):
     def train_model(self, model: nn.Module, train_data: Data, val_data: Data, target_idx: int) -> Tuple[List[Dict], nn.Module]:
         self._setup_optimizer(model)
 
-        # Ensure original features exist
-        if not hasattr(train_data, 'original_features'):
-            train_data.original_features = train_data.x.clone()
-        if not hasattr(val_data, 'original_features'):
-            val_data.original_features = val_data.x.clone()
-
         losses = []
 
         for epoch in range(self.config['num_epochs']):
             # Training Step
             train_loss = self._train_step(train_data, target_idx)
-            
-            # Validation Step with separate validation data
+
+            # Validation Step (val_data is data from a different graph)
             val_loss = self._val_step(val_data, target_idx)
 
             # Progress logging

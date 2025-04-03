@@ -67,7 +67,7 @@ class GNN(nn.Module):
     # TRAINING CODE
     #---------------
 
-    def train_model(self, model: nn.Module, train_data: Data, val_data: Data, target_idx: int) -> Tuple[List[Dict], nn.Module]:
+    def train_model(self, model: nn.Module, train_data: Data, test_data: Data, target_idx: int) -> Tuple[List[Dict], nn.Module]:
         self._setup_optimizer(model)
 
         losses = []
@@ -76,18 +76,18 @@ class GNN(nn.Module):
             # Training Step
             train_loss = self._train_step(train_data, target_idx)
 
-            # Validation Step (val_data is data from a different graph)
-            val_loss = self._val_step(val_data, target_idx)
+            # Test Step (test_data is data from a different graph)
+            test_loss = self._test_step(test_data, target_idx)
 
             # Progress logging
             if epoch % 5 == 0:
                 print(f"Epoch {epoch:3d}: Train Loss = {train_loss:.4f}, "
-                    f"Validation Loss = {val_loss:.4f}")
+                    f"Test Loss = {test_loss:.4f}")
 
             losses.append({
                 'epoch': epoch,
                 'train_loss': train_loss.item(),
-                'val_loss': val_loss.item()
+                'test_loss': test_loss.item()
             })
 
         return losses, model
@@ -120,7 +120,7 @@ class GNN(nn.Module):
         
         return loss
 
-    def _val_step(self, data: Data, target_idx: int) -> torch.Tensor:
+    def _test_step(self, data: Data, target_idx: int) -> torch.Tensor:
         self.eval()
         with torch.no_grad():
             output = self(data)
@@ -138,9 +138,9 @@ class GNN(nn.Module):
         with torch.no_grad():
             output = self(data)
             target = data.original_features[target_idx].reshape(-1, 1)
-            val_loss = self.criterion(output, target)
+            test_loss = self.criterion(output, target)
             
-            metrics['val_loss'] = val_loss.item()
+            metrics['test_loss'] = test_loss.item()
             
             # Mean Absolute Error
             mae = torch.mean(torch.abs(output - target))

@@ -24,6 +24,7 @@ TRAINING_CONFIG = {
     },
 }
 
+# Currently unused
 ANALYSIS_CONFIG = {
     'perturbation': {
         'num_trials': 10,
@@ -49,8 +50,8 @@ NODE_METRICS = [
     "Eigenvector"
 ]
 
-GLOBAL_METRICS = [
-    "GraphDensity",
+GRAPH_METRICS = [
+    "Density",
     "AvgClustering",
     "AvgPathLength",
     "DegreeAssortativity",
@@ -62,13 +63,22 @@ GLOBAL_METRICS = [
     "GlobalEfficiency"
 ]
 
-# Feature names for each node in G'
+# Number of nodes in the subgraph G'
 NUM_NODES = 4
-NODE_PREFIX = "Node"
-SEPARATOR = "_"
 
-FEATURE_NAMES = [
-    f"{NODE_PREFIX}{i+1}{SEPARATOR}{metric}" 
+# Create feature names for:
+# 1. Graph-level features for G
+G_FEATURES = [f"G_{metric}" for metric in GRAPH_METRICS]
+
+# 2. Graph-level features for G/G'
+RESIDUAL_G_FEATURES = [f"GMinus_{metric}" for metric in GRAPH_METRICS]
+
+# 3. Node-level features for G'
+SUBGRAPH_FEATURES = [
+    f"Node{i+1}_{metric}" 
     for i in range(NUM_NODES)
     for metric in NODE_METRICS
-] + GLOBAL_METRICS
+]
+
+# Combine all features
+FEATURE_NAMES = G_FEATURES + RESIDUAL_G_FEATURES + SUBGRAPH_FEATURES

@@ -13,13 +13,13 @@ class VisualizationManager:
 
     def plot_training_progress(self, 
                              train_losses: List[float], 
-                             val_losses: List[float] = None,
+                             test_losses: List[float] = None,
                              title: str = "Training Progress") -> None:
         """Plot training and test losses over epochs."""
         plt.figure(figsize=self.style_config['figsize'])
         plt.plot(train_losses, label='Training Loss', 
                  color=self.style_config['color_palette'][0])
-        plt.plot(val_losses, label='Validation Loss', 
+        plt.plot(test_losses, label='Test Loss', 
                     color=self.style_config['color_palette'][1])
         
         plt.title(title)

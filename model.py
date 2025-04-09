@@ -9,7 +9,7 @@ from torch_geometric.data import Data
 import networkx as nx
 
 from utils.config import MODEL_CONFIG, TRAINING_CONFIG, RESIDUAL_G_FEATURES
-from utils.data_utils import process_graph_data, find_connected_subgraph
+import utils.data_utils as DataUtils
 
 class GNN(nn.Module):
     def __init__(self, node_feature_dim):
@@ -79,12 +79,12 @@ class GNN(nn.Module):
 
         for epoch in range(self.config['num_epochs']):
             # Generate new connected nodes for each graph
-            selected_nodes_train = find_connected_subgraph(G_train)
-            selected_nodes_test = find_connected_subgraph(G_test)
+            selected_nodes_train = DataUtils.find_connected_subgraph(G_train)
+            selected_nodes_test = DataUtils.find_connected_subgraph(G_test)
             
             # Process new data with new selected nodes
-            epoch_train_data = process_graph_data(G_train, selected_nodes_train, target_idx)
-            epoch_test_data = process_graph_data(G_test, selected_nodes_test, target_idx)
+            epoch_train_data = DataUtils.process_graph_data(G_train, selected_nodes_train, target_idx)
+            epoch_test_data = DataUtils.process_graph_data(G_test, selected_nodes_test, target_idx)
 
             # Training Step with new data
             train_loss = self._train_step(epoch_train_data, target_idx)

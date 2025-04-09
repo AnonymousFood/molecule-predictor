@@ -1,7 +1,7 @@
 MODEL_CONFIG = {
     'hidden_dim': 32,
     'num_layers': 2,
-    'dropout_rate': 0.2,
+    'dropout_rate': 0.0,
     'batch_norm': True,
     'layer_norm': False,
     'residual': True

@@ -128,7 +128,7 @@ def process_graph_data(G, selected_nodes, target_idx):
     # Split features into their components
     num_graph_metrics = len(GRAPH_METRICS)
     g_features = features[:num_graph_metrics]
-    g_prime_features = features[num_graph_metrics:]  # Remove the upper bound
+    g_prime_features = features[num_graph_metrics:]
     
     # Create feature matrix
     current_idx = 0
@@ -169,12 +169,12 @@ def process_graph_data(G, selected_nodes, target_idx):
         selected_nodes=torch.tensor(selected_nodes)
     )
 
-    print("\nData Processing Debug:")
-    print(f"Number of connected nodes: {num_nodes}")
-    print(f"Number of features: {num_features}")
-    print(f"Feature tensor shape: {x.shape}")
-    print(f"Edge index shape: {edge_index.shape}")
-    print(f"Target value: {target_value}")
-    print(f"Selected nodes: {selected_nodes}")
+    # print("\nData Processing Debug:")
+    # print(f"Number of connected nodes: {num_nodes}")
+    # print(f"Number of features: {num_features}")
+    # print(f"Feature tensor shape: {x.shape}")
+    # print(f"Edge index shape: {edge_index.shape}")
+    # print(f"Target value: {target_value}")
+    # print(f"Selected nodes: {selected_nodes}")
     
     return data

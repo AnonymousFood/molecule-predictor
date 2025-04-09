@@ -1,7 +1,7 @@
 import torch
 from torch_geometric.data import Data
 from tabulate import tabulate
-import networkx as nx  # Added missing import
+import networkx as nx
 import numpy as np
 
 from utils.config import FEATURE_NAMES, GRAPH_METRICS, NODE_METRICS
@@ -133,7 +133,7 @@ def process_graph_data(G, selected_nodes, target_idx):
     # Create feature matrix
     current_idx = 0
     
-    # Add G features (repeated for each node with small variations)
+    # Add P(G) (repeated for each node with small variations to avoid overfitting)
     for i in range(num_graph_metrics):
         if current_idx != target_idx:
             base_value = g_features[i].clone()
@@ -141,13 +141,13 @@ def process_graph_data(G, selected_nodes, target_idx):
             x[:, current_idx] = torch.clamp(base_value + variations, min=0.0, max=1.0)
             current_idx += 1
             
-    # Add G/G' features
-    for i in range(num_graph_metrics):
-        if current_idx != target_idx:
-            base_value = g_minus_features[i].clone()
-            variations = torch.randn(num_nodes) * 0.05  # 5% variation
-            x[:, current_idx] = torch.clamp(base_value + variations, min=0.0, max=1.0)
-            current_idx += 1
+    # # Add P(G/G')
+    # for i in range(num_graph_metrics):
+    #     if current_idx != target_idx:
+    #         base_value = g_minus_features[i].clone()
+    #         variations = torch.randn(num_nodes) * 0.05  # 5% variation
+    #         x[:, current_idx] = torch.clamp(base_value + variations, min=0.0, max=1.0)
+    #         current_idx += 1
     
     # Add node-level features for selected nodes, zeros for others
     node_feature_size = len(NODE_METRICS)
@@ -168,11 +168,11 @@ def process_graph_data(G, selected_nodes, target_idx):
         current_idx += node_feature_size - 1  # Subtract 1 to account for removed target feature
     
     # Store target value (get it from the appropriate location in node_features)
-    if target_idx < num_graph_metrics:  # Target is a G feature
+    if target_idx < num_graph_metrics:  # Target is a G feature (currently disabled)
         target_value = g_features[target_idx]
     elif target_idx < 2 * num_graph_metrics:  # Target is a G/G' feature
         target_value = g_minus_features[target_idx - num_graph_metrics]
-    else:  # Target is a node feature
+    else:  # Target is a node feature (currently disabled)
         node_idx = (target_idx - 2 * num_graph_metrics) // node_feature_size
         feature_idx = (target_idx - 2 * num_graph_metrics) % node_feature_size
         target_value = node_features[node_idx * node_feature_size + feature_idx]

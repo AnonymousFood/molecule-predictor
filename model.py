@@ -6,8 +6,10 @@ import torch.optim as optim
 from torch_geometric.nn import GCNConv
 from typing import Dict, List, Tuple, Optional
 from torch_geometric.data import Data
+import networkx as nx
 
-from utils.config import MODEL_CONFIG, TRAINING_CONFIG
+from utils.config import MODEL_CONFIG, TRAINING_CONFIG, RESIDUAL_G_FEATURES
+from utils.data_utils import process_graph_data, find_connected_subgraph
 
 class GNN(nn.Module):
     def __init__(self, node_feature_dim):
@@ -69,26 +71,51 @@ class GNN(nn.Module):
 
     def train_model(self, model: nn.Module, train_data: Data, test_data: Data, target_idx: int) -> Tuple[List[Dict], nn.Module]:
         self._setup_optimizer(model)
-
         losses = []
+        
+        # Get original graphs from the data objects
+        G_train = nx.from_edgelist(train_data.edge_index.t().numpy())
+        G_test = nx.from_edgelist(test_data.edge_index.t().numpy())
 
         for epoch in range(self.config['num_epochs']):
-            # Training Step
-            train_loss = self._train_step(train_data, target_idx)
+            # Generate new connected nodes for each graph
+            selected_nodes_train = find_connected_subgraph(G_train)
+            selected_nodes_test = find_connected_subgraph(G_test)
+            
+            # Process new data with new selected nodes
+            epoch_train_data = process_graph_data(G_train, selected_nodes_train, target_idx)
+            epoch_test_data = process_graph_data(G_test, selected_nodes_test, target_idx)
 
-            # Test Step (test_data is data from a different graph)
-            test_loss = self._test_step(test_data, target_idx)
+            # Training Step with new data
+            train_loss = self._train_step(epoch_train_data, target_idx)
+
+            # Test Step with new data
+            test_loss = self._test_step(epoch_test_data, target_idx)
 
             # Progress logging
             if epoch % 5 == 0:
                 print(f"Epoch {epoch:3d}: Train Loss = {train_loss:.4f}, "
-                    f"Test Loss = {test_loss:.4f}")
+                      f"Test Loss = {test_loss:.4f}")
 
             losses.append({
                 'epoch': epoch,
                 'train_loss': train_loss.item(),
                 'test_loss': test_loss.item()
             })
+
+        print("\nFeature Statistics:")
+        print("Target Feature:", RESIDUAL_G_FEATURES[target_idx])
+        print("\nTrain Graph:")
+        train_residual = G_train.copy()
+        train_residual.remove_nodes_from(selected_nodes_train)
+        print(f"Min degree in G/G': {min(dict(train_residual.degree()).values())}")
+        print(f"Num nodes in G/G': {len(train_residual)}")
+
+        print("\nTest Graph:")
+        test_residual = G_test.copy()
+        test_residual.remove_nodes_from(selected_nodes_test)
+        print(f"Min degree in G/G': {min(dict(test_residual.degree()).values())}")
+        print(f"Num nodes in G/G': {len(test_residual)}")
 
         return losses, model
 

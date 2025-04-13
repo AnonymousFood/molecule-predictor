@@ -1,19 +1,19 @@
 MODEL_CONFIG = {
-    'hidden_dim': 32,
-    'num_layers': 2,
-    'dropout_rate': 0.0,
+    'hidden_dim': 64,
+    'num_layers': 3,
+    'dropout_rate': 0.2,
     'batch_norm': True,
     'layer_norm': False,
     'residual': True
 }
 
 TRAINING_CONFIG = {
-    'num_epochs': 100,
-    'learning_rate': 0.0005,
+    'num_epochs': 200,
+    'learning_rate': 0.002,
     'weight_decay': 1e-4,
     'early_stopping': {
-        'enabled': False,
-        'patience': 15,
+        'enabled': True,
+        'patience': 25,
         'min_delta': 1e-4
     },
     'optimizer': {
@@ -22,6 +22,7 @@ TRAINING_CONFIG = {
         'beta2': 0.999,
         'eps': 1e-8
     },
+    'clip_grad_norm': 1.0,
 }
 
 # Currently unused
@@ -38,18 +39,22 @@ ANALYSIS_CONFIG = {
 }
 
 # Feature configuration
-NODE_METRICS = [
+METRICS = [
     "Degree",
     "Clustering",
-    "NeighborDeg",
+    "NeighborDeg", 
     "Betweenness",
     "Closeness",
     "PageRank",
     "CoreNumber",
     "LocalEff",
-    "Eigenvector"
+    "Eigenvector",
+    "Density",
+    "AvgClustering",
 ]
 
+# Isn't used right now, switched to all node features
+NODE_METRICS = METRICS[:9]  # First 9 are node metrics
 GRAPH_METRICS = [
     "Density",
     "AvgClustering",
@@ -63,22 +68,15 @@ GRAPH_METRICS = [
     "GlobalEfficiency"
 ]
 
-# Number of nodes in the subgraph G'
-NUM_NODES = 4
-
-# Create feature names for:
-# 1. Graph-level features for G
-G_FEATURES = [f"G_{metric}" for metric in GRAPH_METRICS]
-
-# 2. Graph-level features for G/G'
+# Used for indexing targets in the residual graph
 RESIDUAL_G_FEATURES = [f"GMinus_{metric}" for metric in GRAPH_METRICS]
 
-# 3. Node-level features for G'
-SUBGRAPH_FEATURES = [
-    f"Node{i+1}_{metric}" 
-    for i in range(NUM_NODES)
-    for metric in NODE_METRICS
-]
+# Number of nodes in the subgraph G'
+NUM_NODES = 10
 
-# Combine all features
-FEATURE_NAMES = G_FEATURES + SUBGRAPH_FEATURES
+# Create feature names - now all features are node features 
+# (1 for node in G, plus 4 for nodes in G')
+FEATURE_NAMES = [f"Node_Metric_{metric}" for metric in METRICS]
+
+# Add a binary indicator feature
+FEATURE_NAMES.append("IsSelected")

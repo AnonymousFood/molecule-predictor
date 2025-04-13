@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch_geometric.nn import GCNConv
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 from torch_geometric.data import Data
 import networkx as nx
 import numpy as np
@@ -107,11 +107,6 @@ class GNN(nn.Module):
         G_test = nx.from_edgelist(test_data.edge_index.t().numpy())
         
         # Early stopping setup
-        patience = self.config['early_stopping']['patience']
-        min_delta = self.config['early_stopping']['min_delta']
-        counter = 0
-        best_test_loss = float('inf')
-        best_accuracy = 0.0
         
         # Store feature stats before training
         print("\nFeature Statistics (Initial):")
@@ -137,7 +132,6 @@ class GNN(nn.Module):
         # Get target value range to normalize accuracy calculations
         # This helps with setting appropriate thresholds for different metrics
         target_val = test_data.y.item()
-        target_scale = max(abs(target_val), 0.1)  # Use a minimum scale to avoid division by zero
 
         for epoch in range(self.config['num_epochs']):
             epoch_start = time.time()
@@ -146,78 +140,32 @@ class GNN(nn.Module):
             selected_nodes_train = DataUtils.find_connected_subgraph(G_train)
             selected_nodes_test = DataUtils.find_connected_subgraph(G_test)
             
-            # Process new data with new selected nodes
+            # Process new data with new selected nodes (includes target value)
             epoch_train_data = DataUtils.process_graph_data(G_train, selected_nodes_train, target_idx)
             epoch_test_data = DataUtils.process_graph_data(G_test, selected_nodes_test, target_idx)
 
             # Training Step with new data
-            train_loss = self._train_step(epoch_train_data, target_idx)
+            train_loss = self._train_step(epoch_train_data)
 
             # Test Step with new data
-            test_loss = self._test_step(epoch_test_data, target_idx)
+            test_loss = self._test_step(epoch_test_data)
             
             # Update learning rate based on test loss
             if self.scheduler is not None:
                 self.scheduler.step(test_loss)
             
-            # Calculate accuracy
             self.eval()
-            with torch.no_grad():
-                output = self(epoch_test_data)
-                target = epoch_test_data.y.reshape(-1, 1).to(output.device)
-                
-                # Broadcast target to match output shape
-                if output.shape[0] != target.shape[0]:
-                    target = target.expand(output.shape[0], -1)
-                
-                # Calculate multiple accuracy metrics with adaptive thresholds
-                rel_error = torch.abs(output - target) / (torch.abs(target) + 1e-10)
-                abs_error = torch.abs(output - target)
-                
-                # Use multiple thresholds and take the best result
-                accuracy_metrics = []
-                
-                # Percentage-based thresholds (adapt to the target value)
-                for threshold in [0.05, 0.10, 0.15, 0.20, 0.25]:
-                    accuracy = torch.mean((rel_error <= threshold).float()) * 100
-                    accuracy_metrics.append(accuracy.item())
-                
-                # Absolute thresholds (for small values)
-                for threshold in [0.01, 0.025, 0.05, 0.075, 0.1]:
-                    accuracy = torch.mean((abs_error <= threshold * target_scale).float()) * 100
-                    accuracy_metrics.append(accuracy.item())
-                
-                # Use the best accuracy from all metrics
-                accuracy = max(accuracy_metrics)
-            
-            # Save best model (using a combination of loss and accuracy)
-            if test_loss < best_test_loss - min_delta:
-                best_test_loss = test_loss.item()
-                self.best_model = self.state_dict().copy()
-                counter = 0
-            elif accuracy > best_accuracy + 5.0:  # Also save if accuracy is significantly better
-                best_accuracy = accuracy
-                self.best_model = self.state_dict().copy()
-                counter = 0
-            else:
-                counter += 1
-            
-            # Early stopping
-            if self.config['early_stopping']['enabled'] and counter >= patience:
-                print(f"Early stopping at epoch {epoch}")
-                break
 
             # Print progress for EVERY epoch
             epoch_time = time.time() - epoch_start
             print(f"Epoch {epoch:3d}: Train Loss = {train_loss:.4f}, "
-                f"Test Loss = {test_loss:.4f}, Accuracy: {accuracy:.2f}%, "
+                f"Test Loss = {test_loss:.4f}, "
                 f"Time = {epoch_time:.2f}s")
 
             losses.append({
                 'epoch': epoch,
                 'train_loss': train_loss.item(),
-                'test_loss': test_loss.item(),
-                'accuracy': accuracy
+                'test_loss': test_loss.item()
             })
         
         # Load best model if available
@@ -254,7 +202,7 @@ class GNN(nn.Module):
             verbose=True
         )
     
-    def _train_step(self, data: Data, target_idx: int) -> torch.Tensor:
+    def _train_step(self, data: Data) -> torch.Tensor:
         self.train()
         self.optimizer.zero_grad()
         
@@ -273,7 +221,7 @@ class GNN(nn.Module):
         
         return loss
 
-    def _test_step(self, data: Data, target_idx: int) -> torch.Tensor:
+    def _test_step(self, data: Data) -> torch.Tensor:
         self.eval()
         with torch.no_grad():
             output = self(data)
@@ -286,7 +234,7 @@ class GNN(nn.Module):
             loss = self.criterion(output, target)
             return loss
 
-    def evaluate(self, data: Data, target_idx: int) -> Dict[str, float]:
+    def evaluate(self, data: Data) -> Dict[str, float]:
         self.eval()
         metrics = {}
         
@@ -305,20 +253,6 @@ class GNN(nn.Module):
             # Mean Absolute Error
             mae = torch.mean(torch.abs(output - target))
             metrics['mae'] = mae.item()
-            
-            # Calculate accuracy within different tolerance thresholds
-            # Consider predictions "correct" if within 5%, 10%, and 20% of actual value
-            rel_error = torch.abs(output - target) / (torch.abs(target) + 1e-10)
-            
-            for threshold in [0.05, 0.10, 0.20]:
-                accuracy = torch.mean((rel_error <= threshold).float()) * 100
-                metrics[f'accuracy_{int(threshold*100)}pct'] = accuracy.item()
-            
-            # Absolute error threshold (for when values are near zero)
-            abs_thresholds = [0.01, 0.05, 0.1]
-            for threshold in abs_thresholds:
-                accuracy = torch.mean((torch.abs(output - target) <= threshold).float()) * 100
-                metrics[f'accuracy_abs{threshold}'] = accuracy.item()
             
             # R-squared score with safeguards
             target_mean = torch.mean(target)

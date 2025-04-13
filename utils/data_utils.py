@@ -21,10 +21,9 @@ def find_connected_subgraph(G, size=4):
 
 def generate_graph(num_nodes=1000, edge_prob=0.2, max_attempts=5):
     for _ in range(max_attempts):
-        # Generate sparse representation directly
-        G = nx.fast_gnp_random_graph(n=num_nodes, p=edge_prob)
+        G = nx.erdos_renyi_graph(n=num_nodes, p=edge_prob)
         
-        # Find largest connected component first
+        # Find largest connected component first - TODO make this fit problem description
         largest_cc = max(nx.connected_components(G), key=len)
         if len(largest_cc) >= 4:
             G = nx.convert_node_labels_to_integers(G)
@@ -33,104 +32,7 @@ def generate_graph(num_nodes=1000, edge_prob=0.2, max_attempts=5):
                 return G, connected_nodes
     
     raise RuntimeError("Could not generate suitable graph after max attempts")
-        
-# def compute_features(G, nodes):
-#     features = []
 
-#     # Create subgraph G' from selected nodes
-#     subgraph = G.subgraph(nodes)
-    
-    # def compute_graph_features(graph): # Used to get P(G)
-    #     return [
-    #         nx.density(graph),
-    #         nx.average_clustering(graph),
-    #         nx.average_shortest_path_length(graph) / len(graph) if nx.is_connected(graph) else 0.1,
-    #         nx.degree_assortativity_coefficient(graph),
-    #         nx.transitivity(graph),
-    #         len(list(nx.connected_components(graph))) / len(graph),
-    #         max(dict(graph.degree()).values()),
-    #         min(dict(graph.degree()).values()),
-    #         np.mean(list(dict(graph.degree()).values())),
-    #         nx.global_efficiency(graph)
-    #     ]
-    
-    # # Compute P(G)
-    # g_features = compute_graph_features(G)
-    # features.extend(g_features)
-    
-    # # Compute P(G')
-    # try:
-    #     betweenness = nx.betweenness_centrality(subgraph)
-    #     closeness = nx.closeness_centrality(subgraph)
-    #     pagerank = nx.pagerank(subgraph)
-    #     core_numbers = nx.core_number(subgraph)
-    #     degrees = dict(subgraph.degree())
-    #     clustering = nx.clustering(subgraph)
-    #     eigenvector = nx.eigenvector_centrality_numpy(subgraph)
-        
-    #     for node in nodes:
-    #         neighbors = list(subgraph.neighbors(node))
-    #         avg_neighbor_degree = (
-    #             np.mean([degrees[n] for n in neighbors]) 
-    #             if neighbors else 0.1
-    #         )
-            
-    #         node_features = [
-    #             degrees[node],
-    #             clustering[node],
-    #             avg_neighbor_degree,
-    #             betweenness[node],
-    #             closeness[node],
-    #             pagerank[node],
-    #             core_numbers[node],
-    #             fast_local_efficiency(subgraph, node),
-    #             eigenvector[node]
-    #         ]
-    #         features.extend(node_features)
-            
-    # except Exception as e:
-    #     print(f"Error computing node metrics for subgraph: {str(e)}")
-    #     raise
-
-    # return torch.tensor(features, dtype=torch.float32)
-
-# Replace your compute_local_efficiency function with this:
-# def compute_local_efficiency(G, node):
-#     """
-#     Compute local efficiency for a node with caching to avoid repeated calculations
-#     """
-#     # Use node ID as cache key
-#     cache_key = (id(G), node)
-#     if cache_key in _local_eff_cache:
-#         return _local_eff_cache[cache_key]
-    
-#     neighbors = list(G.neighbors(node))
-#     if len(neighbors) < 2:
-#         _local_eff_cache[cache_key] = 0.0
-#         return 0.0
-    
-#     # Skip computation for very large neighborhood sets (approximation)
-#     if len(neighbors) > 50:
-#         # Sample for large neighborhoods
-#         neighbors = random.sample(neighbors, 50)
-    
-#     # Create subgraph of node's neighbors
-#     subgraph = G.subgraph(neighbors)
-#     if len(subgraph) < 2:
-#         _local_eff_cache[cache_key] = 0.0
-#         return 0.0
-    
-#     try:
-#         # Calculate average shortest path length in subgraph
-#         avg_path_length = nx.average_shortest_path_length(subgraph)
-#         result = 1.0 / avg_path_length if avg_path_length > 0 else 0.0
-#         _local_eff_cache[cache_key] = result
-#         return result
-#     except nx.NetworkXError:
-#         # Handle disconnected graphs
-#         _local_eff_cache[cache_key] = 0.0
-#         return 0.0
-    
 def process_graph_data(G, selected_nodes, target_idx):
     # Relabel and map nodes
     G = nx.convert_node_labels_to_integers(G)
@@ -138,9 +40,10 @@ def process_graph_data(G, selected_nodes, target_idx):
     selected_nodes = [node_mapping[node] for node in selected_nodes]
     
     num_nodes = len(G)
-    x = torch.zeros((num_nodes, len(FEATURE_NAMES)))
+    x = torch.zeros((num_nodes, len(FEATURE_NAMES))) # Features
     
-    # Skip calculations not needed for the target feature
+    # Can skip calculations not needed for the target feature - EXPERIMENTAL
+
     # Get essential metrics that are always needed
     degrees = dict(G.degree())
     max_degree = max(degrees.values()) if degrees else 1.0
@@ -152,15 +55,15 @@ def process_graph_data(G, selected_nodes, target_idx):
     target_metric = RESIDUAL_G_FEATURES[target_idx].replace("GMinus_", "")
     
     # Determine which metrics to calculate based on the target
-    calculate_clustering = False
-    calculate_pagerank = False
-    calculate_betweenness = False
-    calculate_eigenvector = False
-    calculate_closeness = False
-    calculate_coreness = False
-    calculate_local_efficiency = False
+    calculate_clustering = True
+    calculate_pagerank = True
+    calculate_betweenness = True
+    calculate_eigenvector = True
+    calculate_closeness = True
+    calculate_coreness = True
+    calculate_local_efficiency = True
     
-    # Only calculate if needed for node features or target metric
+    # Only calculate if needed for node features or target metric - EXPERIMENTAL
     if "Clustering" in target_metric or "Transitivity" in target_metric or any(f in target_metric for f in ["Assortativity", "Path"]):
         calculate_clustering = True
     if "PageRank" in target_metric:
@@ -220,7 +123,7 @@ def process_graph_data(G, selected_nodes, target_idx):
     else:
         eigenvector = {node: 0.0 for node in G.nodes()}
     
-    # Average clustering - skipped if not needed
+    # Average clustering
     if "AvgClustering" in target_metric:
         # Use sampling for average clustering
         if num_nodes > 100:
@@ -240,9 +143,9 @@ def process_graph_data(G, selected_nodes, target_idx):
             if neighbors else 0.1
         )
     
-    # Assign features to nodes efficiently
+    # Assign features to nodes
     for node in G.nodes():
-        # Set features for this node - using the METRICS order
+        # Set features for this node
         x[node, 0] = degrees[node] / max_degree if max_degree > 0 else 0
         x[node, 1] = clustering.get(node, 0.0)
         x[node, 2] = neighbor_degrees[node] / max_degree if max_degree > 0 else 0
@@ -266,7 +169,7 @@ def process_graph_data(G, selected_nodes, target_idx):
     G_minus = G.copy()
     G_minus.remove_nodes_from(selected_nodes)
     
-    # Optimize target function calculations based on the specific target
+    # Calculate target value based on target idx
     target_value = 0.0
     
     # Call only the specific target function needed
@@ -296,10 +199,10 @@ def process_graph_data(G, selected_nodes, target_idx):
     
     # Create data object
     data = Data(
-        x=x,
+        x=x, # Features
         edge_index=edge_index,
-        y=torch.tensor(target_value, dtype=torch.float32),
-        selected_nodes=torch.tensor(selected_nodes)
+        y=torch.tensor(target_value, dtype=torch.float32), # Contains target value of train and test data
+        selected_nodes=torch.tensor(selected_nodes) # Which nodes are removed?
     )
     
     return data

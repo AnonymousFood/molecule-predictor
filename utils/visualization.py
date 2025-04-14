@@ -12,7 +12,7 @@ def visualize_results(losses, trained_model, test_data, target_feature):
     plt.plot(epochs, test_losses, 'r-', label='Test Loss')
     plt.title(f'Loss Over Epochs for {target_feature}')
     plt.xlabel('Epoch')
-    plt.ylabel('Loss')
+    plt.ylabel('Loss (MSE)')
     plt.legend()
     plt.grid(True, alpha=0.3)
 

@@ -40,7 +40,7 @@ def process_graph_data(G, selected_nodes, target_idx):
     selected_nodes = [node_mapping[node] for node in selected_nodes]
     
     num_nodes = len(G)
-    x = torch.zeros((num_nodes, len(FEATURE_NAMES))) # Features
+    x = torch.zeros((num_nodes, len(FEATURE_NAMES)))
     
     # Can skip calculations not needed for the target feature - EXPERIMENTAL
 
@@ -49,7 +49,7 @@ def process_graph_data(G, selected_nodes, target_idx):
     max_degree = max(degrees.values()) if degrees else 1.0
     
     # Compute graph density - needed for most features
-    graph_density = nx.density(G)
+    # graph_density = nx.density(G)
     
     # Get the specific target function to determine what we need to calculate
     target_metric = RESIDUAL_G_FEATURES[target_idx].replace("GMinus_", "")
@@ -143,6 +143,17 @@ def process_graph_data(G, selected_nodes, target_idx):
             if neighbors else 0.1
         )
     
+    # Calculate local density for each node
+    local_density = {}
+    for node in G.nodes():
+        neighbors = list(G.neighbors(node))
+        if len(neighbors) < 2:
+            local_density[node] = 0.0
+            continue
+        # Create subgraph of node and its neighbors
+        subgraph = G.subgraph(neighbors + [node])
+        local_density[node] = nx.density(subgraph)
+    
     # Assign features to nodes
     for node in G.nodes():
         # Set features for this node
@@ -158,12 +169,10 @@ def process_graph_data(G, selected_nodes, target_idx):
         x[node, 7] = fast_local_efficiency(G, node) if calculate_local_efficiency else 0.0
         x[node, 8] = eigenvector.get(node, 0.0) * 10
         
-        # Add a couple of graph-level metrics as node features
-        x[node, 9] = graph_density
-        x[node, 10] = avg_clustering
-        
-        # Binary indicator: is this a selected node?
-        x[node, 11] = 1.0 if node in selected_nodes else 0.0
+        # Replace graph density with local density
+        x[node, 9] = local_density[node]
+
+        x[node, 10] = 1.0 if node in selected_nodes else 0.0  # Move IsSelected to index 10
     
     # Compute target value - G/G' metrics
     G_minus = G.copy()

@@ -1,15 +1,15 @@
 MODEL_CONFIG = {
-    'hidden_dim': 64,
+    'hidden_dim': 128,
     'num_layers': 3,
-    'dropout_rate': 0.2,
+    'dropout_rate': 0.3,
     'batch_norm': True,
     'layer_norm': False,
     'residual': True
 }
 
 TRAINING_CONFIG = {
-    'num_epochs': 200,
-    'learning_rate': 0.002,
+    'num_epochs': 100,
+    'learning_rate': 0.0005,
     'weight_decay': 1e-4,
     'early_stopping': {
         'enabled': True,
@@ -49,12 +49,12 @@ METRICS = [
     "CoreNumber",
     "LocalEff",
     "Eigenvector",
-    "Density",
-    "AvgClustering",
+    "LocalDensity",
+    "IsSelected"
 ]
 
-# Isn't used right now, switched to all node features
-NODE_METRICS = METRICS[:9]  # First 9 are node metrics
+# Isn't used right now for features, only label
+NODE_METRICS = METRICS[:10]  # First 10 are node metrics now
 GRAPH_METRICS = [
     "Density",
     "AvgClustering",
@@ -77,6 +77,3 @@ NUM_NODES = 10
 # Create feature names - now all features are node features 
 # (1 for node in G, plus 4 for nodes in G')
 FEATURE_NAMES = [f"Node_Metric_{metric}" for metric in METRICS]
-
-# Add a binary indicator feature
-FEATURE_NAMES.append("IsSelected")

@@ -245,8 +245,6 @@ def visualize_feature_pairs(data_or_stats, num_pairs=5, prioritize_variance=True
     for feature, var in sorted(feature_variances.items(), key=lambda x: x[1], reverse=True):
         print(f"  {feature}: {var:.8f}")
     
-    # Continue with existing functionality for plotting...
-    # [rest of function remains unchanged]
     # Select feature pairs based on variance
     pairs = []
     
@@ -277,17 +275,29 @@ def visualize_feature_pairs(data_or_stats, num_pairs=5, prioritize_variance=True
     for f1, f2 in pairs:
         print(f"  {f1} vs {f2}")
     
-    # Create the figure with correct number of subplots
-    fig, axes = plt.subplots(1, len(pairs), figsize=(6*len(pairs), 5))
+    # Calculate rows and columns for plotting layout (max 3 per row)
+    n_cols = min(3, len(pairs))
+    n_rows = (len(pairs) + n_cols - 1) // n_cols  # Ceiling division
     
-    # Make sure axes is always iterable even if there's only one subplot
-    if len(pairs) == 1:
-        axes = [axes]
+    # Create the figure with multiple rows of subplots
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6*n_cols, 5*n_rows))
+    
+    # Handle axes for different scenarios
+    if n_rows == 1 and n_cols == 1:
+        axes = np.array([[axes]])
+    elif n_rows == 1:
+        axes = axes.reshape(1, -1)
+    elif n_cols == 1:
+        axes = axes.reshape(-1, 1)
     
     # Plot each pair
     for i, (feature1, feature2) in enumerate(pairs):
+        # Calculate row and column for this pair
+        row = i // n_cols
+        col = i % n_cols
+        
         # Get current axis
-        ax = axes[i]
+        ax = axes[row, col]
         
         # Extract data for this feature pair
         x_data = df[feature1].values
@@ -354,6 +364,12 @@ def visualize_feature_pairs(data_or_stats, num_pairs=5, prioritize_variance=True
                 # Generate points for the line that span the visible range
                 x_line = np.linspace(x_min_p - padding_x, x_max_p + padding_x, 100)
                 ax.plot(x_line, p(x_line), "r--", alpha=0.7)
+    
+    # Hide any unused subplots
+    for i in range(len(pairs), n_rows * n_cols):
+        row = i // n_cols
+        col = i % n_cols
+        axes[row, col].set_visible(False)
     
     plt.tight_layout()
     plt.show()

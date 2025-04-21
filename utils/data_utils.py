@@ -7,7 +7,7 @@ import random
 from utils.fast_features import fast_clustering_coefficient, fast_global_efficiency, fast_local_efficiency, fast_shortest_path_length
 from utils.config import FEATURE_NAMES, RESIDUAL_G_FEATURES
 
-def find_connected_subgraph(G, size=4):
+def find_connected_subgraph(G, size=100):
     # First relabel nodes to ensure consecutive integers
     G = nx.convert_node_labels_to_integers(G)
     
@@ -23,11 +23,12 @@ def generate_graph(num_nodes=1000, edge_prob=0.2, max_attempts=5):
     for _ in range(max_attempts):
         G = nx.erdos_renyi_graph(n=num_nodes, p=edge_prob)
         
-        # Find largest connected component first - TODO make this fit problem description
+        # Find largest connected component
         largest_cc = max(nx.connected_components(G), key=len)
-        if len(largest_cc) >= 4:
+        if len(largest_cc) >= 100:
             G = nx.convert_node_labels_to_integers(G)
-            connected_nodes = find_connected_subgraph(G, size=4)
+            size = int(num_nodes / 10) # 10% of nodes
+            connected_nodes = find_connected_subgraph(G, size=size)
             if connected_nodes is not None:
                 return G, connected_nodes
     

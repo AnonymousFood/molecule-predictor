@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, global_mean_pool
 from typing import Dict, List, Tuple
 from torch_geometric.data import Data
 import time
+import random
+import networkx as nx
 
 from utils.config import TRAINING_CONFIG, RESIDUAL_G_FEATURES, FEATURE_NAMES
 import utils.data_utils as DataUtils
@@ -24,13 +26,17 @@ class GNN(nn.Module):
         
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
+        batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)  # Since all nodes belong to one graph
         
         # Single GCN layer with activation
         x = self.conv(x, edge_index) # GCN Layer handles message passing
         x = F.relu(x)
-        
-        # Final prediction
-        return self.final_layer(x)
+
+        # Node-level predictions
+        node_preds = self.final_layer(x)
+
+        # Aggregate to graph-level prediction (mean pooling)
+        return global_mean_pool(node_preds, batch)
     
     #---------------
     # TRAINING CODE
@@ -42,6 +48,19 @@ class GNN(nn.Module):
         losses = []
         num_epochs = TRAINING_CONFIG['num_epochs']
         num_features = train_data.x.shape[1]
+
+        # Store original graphs so we can make new G' and G/G' graphs every epoch
+        train_edge_list = train_data.edge_index.t().cpu().numpy()
+        train_G = nx.Graph()
+        train_G.add_nodes_from(range(train_data.x.shape[0]))
+        train_G.add_edges_from(train_edge_list)
+        
+        test_edge_list = test_data.edge_index.t().cpu().numpy()
+        test_G = nx.Graph()
+        test_G.add_nodes_from(range(test_data.x.shape[0]))
+        test_G.add_edges_from(test_edge_list)
+
+        num_selected = len(train_data.selected_nodes)
         
         # Create tensors to store statistics
         feature_means = torch.zeros(num_epochs, num_features)
@@ -52,11 +71,20 @@ class GNN(nn.Module):
         training_start = time.time()
         
         for epoch in range(num_epochs):
+
+            # Sample new nodes to remove for this epoch
+            selected_nodes_train = random.sample(list(train_G.nodes()), num_selected)
+            selected_nodes_test = random.sample(list(test_G.nodes()), num_selected)
+
+             # Recalculate everything using process_graph_data
+            epoch_train_data = DataUtils.process_graph_data(train_G, selected_nodes_train, target_idx)
+            epoch_test_data = DataUtils.process_graph_data(test_G, selected_nodes_test, target_idx)
+
             # Training step
             self.train()
             self.optimizer.zero_grad()
-            output = self(train_data)
-            target = train_data.y.reshape(-1, 1).to(output.device)
+            output = self(epoch_train_data)
+            target = epoch_train_data.y.reshape(-1, 1).to(output.device)
             train_loss = self.criterion(output, target)
             train_loss.backward()
             self.optimizer.step()
@@ -64,13 +92,13 @@ class GNN(nn.Module):
             # Testing step
             self.eval()
             with torch.no_grad():
-                test_output = self(test_data)
-                test_target = test_data.y.reshape(-1, 1).to(test_output.device)
+                test_output = self(epoch_test_data)
+                test_target = epoch_test_data.y.reshape(-1, 1).to(test_output.device)
                 test_loss = self.criterion(test_output, test_target)
                 
                 # Store statistics
-                feature_means[epoch] = torch.mean(train_data.x, dim=0)
-                actual_values[epoch] = train_data.y
+                feature_means[epoch] = torch.mean(epoch_train_data.x, dim=0)
+                actual_values[epoch] = epoch_train_data.y
                 predicted_values[epoch] = torch.mean(output).item()
             
             print(f"Epoch {epoch}: Train Loss = {train_loss.item():.4e}, Test Loss = {test_loss.item():.4e}")

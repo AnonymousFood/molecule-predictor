@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from sklearn.decomposition import PCA
 
 from utils.config import FEATURE_NAMES
 
@@ -56,32 +57,124 @@ def visualize_results(losses, trained_model, test_data, target_feature, feature_
         print(f"Standard deviation of predictions: {std_predictions:.6f}")
         
         # Plot distributions
-        plt.figure(figsize=(10, 6))
-        plt.hist(predictions, bins=20, alpha=0.5, color='blue', label='Predictions')
-        plt.hist(actuals, bins=20, alpha=0.5, color='red', label='Actual Values')
-        plt.axvline(avg_actual, color='red', linestyle='dashed', linewidth=2, label='True Mean Value')
-        plt.axvline(avg_prediction, color='green', linestyle='dashed', linewidth=2, label='Mean Prediction')
-        plt.xlabel('Values')
-        plt.ylabel('Frequency')
-        plt.title(f'Distribution of Predictions vs Actuals for {target_feature}')
-        plt.legend()
-        plt.grid(True, alpha=0.3)
-        plt.show()
+        # plt.figure(figsize=(10, 6))
+        # plt.hist(predictions, bins=20, alpha=0.5, color='blue', label='Predictions')
+        # plt.hist(actuals, bins=20, alpha=0.5, color='red', label='Actual Values')
+        # plt.axvline(avg_actual, color='red', linestyle='dashed', linewidth=2, label='True Mean Value')
+        # plt.axvline(avg_prediction, color='green', linestyle='dashed', linewidth=2, label='Mean Prediction')
+        # plt.xlabel('Values')
+        # plt.ylabel('Frequency')
+        # plt.title(f'Distribution of Predictions vs Actuals for {target_feature}')
+        # plt.legend()
+        # plt.grid(True, alpha=0.3)
+        # plt.show()
+        plot_error_distribution(predictions, actuals, target_feature)
         
-        # If we have feature_stats with predictions, show how predictions evolved over training
-        if feature_stats is not None and hasattr(feature_stats, 'predicted_values'):
-            plt.figure(figsize=(10, 6))
-            epochs = np.arange(len(feature_stats.predicted_values))
-            plt.plot(epochs, feature_stats.predicted_values.cpu().numpy(), 'b-', label='Predicted Values')
-            plt.plot(epochs, feature_stats.actual_values.cpu().numpy(), 'r-', label='Actual Values')
-            plt.xlabel('Epoch')
-            plt.ylabel('Value')
-            plt.title(f'Evolution of Predictions vs Actuals for {target_feature}')
-            plt.legend()
-            plt.grid(True, alpha=0.3)
-            plt.tight_layout()
-            plt.show()
+        # # If we have feature_stats with predictions, show how predictions evolved over training
+        # if feature_stats is not None and hasattr(feature_stats, 'predicted_values'):
+        #     plot_error_distribution(predictions, actuals, target_feature)
+        #     plt.figure(figsize=(10, 6))
+        #     epochs = np.arange(len(feature_stats.predicted_values))
+        #     plt.plot(epochs, feature_stats.predicted_values.cpu().numpy(), 'b-', label='Predicted Values')
+        #     plt.plot(epochs, feature_stats.actual_values.cpu().numpy(), 'r-', label='Actual Values')
+        #     plt.xlabel('Epoch')
+        #     plt.ylabel('Value')
+        #     plt.title(f'Evolution of Predictions vs Actuals for {target_feature}')
+        #     plt.legend()
+        #     plt.grid(True, alpha=0.3)
+        #     plt.tight_layout()
+        #     plt.show()
 
+def plot_error_distribution(predictions, actuals, target_feature, log_scale=True):
+    """
+    Plots the distribution of absolute errors between predicted and actual values.
+    
+    Args:
+        predictions: Array of predicted values
+        actuals: Array of actual values
+        target_feature: Name of the feature being predicted
+        log_scale: Whether to use a logarithmic scale (default: True)
+    """
+    # Calculate absolute errors
+    abs_errors = np.abs(predictions - actuals)
+    
+    # Calculate error statistics
+    min_error = np.min(abs_errors)
+    max_error = np.max(abs_errors)
+    mean_error = np.mean(abs_errors)
+    median_error = np.median(abs_errors)
+    
+    # Create the figure
+    plt.figure(figsize=(14, 8))
+    
+    # Increase font sizes
+    plt.rcParams.update({'font.size': 16})
+    title_fontsize = 26
+    label_fontsize = 20
+    legend_fontsize = 16
+    annotation_fontsize = 16
+    
+    # Plot histogram with log scale if requested
+    if log_scale:
+        # Ensure no zeros for log scale
+        nonzero_errors = abs_errors[abs_errors > 0]
+        if len(nonzero_errors) == 0:
+            print("All errors are zero! Perfect predictions.")
+            return
+            
+        # Set minimum error for log scale
+        min_nonzero = np.min(nonzero_errors)
+        
+        # Create log bins that cover the range of errors
+        log_min = np.log10(min_nonzero)
+        log_max = np.log10(max_error) if max_error > 0 else 0
+        if log_min == log_max:  # Handle case where all errors are identical
+            log_bins = np.linspace(log_min-0.1, log_min+0.1, 10)
+        else:
+            log_bins = np.linspace(log_min, log_max, 50)
+            
+        bins = 10 ** log_bins
+        
+        # Plot on log scale
+        plt.hist(abs_errors, bins=bins, alpha=0.7)
+        plt.xscale('log')
+        plt.title(f'Distribution of Absolute Errors on Log Scale - {target_feature}', fontsize=title_fontsize)
+    else:
+        # Linear scale
+        plt.hist(abs_errors, bins=30, alpha=0.7)
+        plt.title(f'Distribution of Absolute Errors - {target_feature}', fontsize=title_fontsize)
+    
+    # Add vertical lines for statistics with increased font size
+    plt.axvline(x=mean_error, color='r', linestyle='--', linewidth=2.5, 
+                label=f'Mean Error: {mean_error:.8f}')
+    plt.axvline(x=median_error, color='g', linestyle='--', linewidth=2.5, 
+                label=f'Median Error: {median_error:.8f}')
+    
+    # Annotate min and max with larger font and more visible box
+    plt.annotate(f'Min Error: {min_error:.8f}', 
+                xy=(0.02, 0.95), xycoords='axes fraction',
+                fontsize=annotation_fontsize,
+                bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="black", alpha=0.9))
+    plt.annotate(f'Max Error: {max_error:.8f}', 
+                xy=(0.02, 0.87), xycoords='axes fraction',
+                fontsize=annotation_fontsize,
+                bbox=dict(boxstyle="round,pad=0.5", fc="white", ec="black", alpha=0.9))
+    
+    # Add labels and legend with larger font sizes
+    plt.xlabel('Absolute Error (|Predicted - Actual|)', fontsize=label_fontsize)
+    plt.ylabel('Frequency', fontsize=label_fontsize)
+    plt.legend(fontsize=legend_fontsize)
+    plt.grid(True, alpha=0.3, which='both')  # Grid lines for both major and minor ticks
+    
+    # Increase tick label size
+    plt.tick_params(axis='both', which='major', labelsize=12)
+    
+    plt.tight_layout()
+    plt.show()
+    
+    # Reset font size to default after plotting
+    plt.rcParams.update({'font.size': plt.rcParams.get('font.size')})
+    
 def visualize_feature_statistics(data, show_histograms=False):
     """
     Generate a table with statistics for all node features in the provided data.
@@ -177,16 +270,6 @@ def visualize_feature_statistics(data, show_histograms=False):
     return stats_df
 
 def visualize_feature_pairs(data_or_stats, num_pairs=5, prioritize_variance=True, use_node_features=False):
-    """
-    Plot scatter plots for feature pairs to visually assess correlation.
-    Also displays a ranked list of all feature pairs by Spearman correlation.
-    
-    Args:
-        data_or_stats: Either a PyG Data object or feature_stats from training
-        num_pairs: Number of feature pairs to plot (default: 5)
-        prioritize_variance: Whether to prioritize features with higher variance (default: True)
-        use_node_features: If True, use the actual node features instead of epoch means (default: False)
-    """
     print("\nVisualizing Feature Pairs...")
     
     # Determine what data we're using
@@ -373,3 +456,101 @@ def visualize_feature_pairs(data_or_stats, num_pairs=5, prioritize_variance=True
     
     plt.tight_layout()
     plt.show()
+
+def visualize_pca(data, n_components=2, use_node_features=True):
+    """
+    Perform PCA on node features and visualize the results.
+    
+    Args:
+        data: PyG Data object or feature stats
+        n_components: Number of PCA components to use
+        use_node_features: If True, use actual node features instead of feature means
+    """
+    
+    print("\nPerforming PCA on node features...")
+    
+    # Determine what data we're using
+    if use_node_features and hasattr(data, 'x'):
+        # Use actual node features from PyG Data object
+        print("Using raw node features")
+        feature_tensor = data.x.cpu().numpy()
+        
+        # Sample nodes if there are too many (for efficient visualization)
+        if feature_tensor.shape[0] > 500:
+            print(f"Sampling 500 nodes from {feature_tensor.shape[0]} total")
+            indices = np.random.choice(feature_tensor.shape[0], 500, replace=False)
+            feature_tensor = feature_tensor[indices]
+    else:
+        # Use the epoch means
+        print("Using epoch-wise feature means")
+        feature_tensor = data.feature_means.cpu().numpy()
+    
+    # Create DataFrame with features
+    df = pd.DataFrame(feature_tensor, columns=FEATURE_NAMES)
+    
+    # Remove any excluded features if needed
+    excluded_features = ['Node_Metric_IsSelected']
+    included_features = [f for f in FEATURE_NAMES if f not in excluded_features]
+    df_filtered = df[included_features]
+    
+    # Apply PCA
+    pca = PCA(n_components=min(n_components, len(included_features)))
+    principal_components = pca.fit_transform(df_filtered)
+    
+    # Create result DataFrame
+    pc_cols = [f'PC{i+1}' for i in range(n_components)]
+    pca_df = pd.DataFrame(data=principal_components, columns=pc_cols)
+    
+    # Print explained variance
+    explained_variance = pca.explained_variance_ratio_ * 100
+    cumulative_variance = np.cumsum(explained_variance)
+    
+    print("\nPCA Explained Variance:")
+    for i, var in enumerate(explained_variance):
+        print(f"  PC{i+1}: {var:.2f}% (Cumulative: {cumulative_variance[i]:.2f}%)")
+    
+    # Print feature contributions to top components
+    print("\nFeature Contributions to Top Components:")
+    components_df = pd.DataFrame(
+        pca.components_[:2].T,  # Take top 2 components
+        columns=['PC1', 'PC2'],
+        index=included_features
+    )
+    print(components_df.sort_values(by='PC1', key=abs, ascending=False))
+    
+    # Visualization
+    plt.figure(figsize=(10, 8))
+    
+    # If we have many points, use a scatter plot with transparency
+    if principal_components.shape[0] > 50:
+        plt.scatter(
+            principal_components[:, 0], 
+            principal_components[:, 1],
+            alpha=0.5, 
+            edgecolor='k', 
+            s=40
+        )
+    else:
+        # For epoch data, connect points to show progression
+        plt.plot(principal_components[:, 0], principal_components[:, 1], 'o-')
+        
+        # Add annotations for a few epochs
+        n_points = principal_components.shape[0]
+        for i in [0, n_points//4, n_points//2, 3*n_points//4, n_points-1]:
+            if i < n_points:
+                plt.annotate(
+                    f"Epoch {i}", 
+                    (principal_components[i, 0], principal_components[i, 1]),
+                    textcoords="offset points",
+                    xytext=(0,10),
+                    ha='center'
+                )
+    
+    plt.xlabel(f'Principal Component 1 ({explained_variance[0]:.2f}%)')
+    plt.ylabel(f'Principal Component 2 ({explained_variance[1]:.2f}%)')
+    plt.title('PCA of Node Features')
+    plt.grid(alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+    
+    return pca, principal_components

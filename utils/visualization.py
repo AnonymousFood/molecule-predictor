@@ -474,12 +474,6 @@ def visualize_pca(data, n_components=2, use_node_features=True):
         # Use actual node features from PyG Data object
         print("Using raw node features")
         feature_tensor = data.x.cpu().numpy()
-        
-        # Sample nodes if there are too many (for efficient visualization)
-        if feature_tensor.shape[0] > 500:
-            print(f"Sampling 500 nodes from {feature_tensor.shape[0]} total")
-            indices = np.random.choice(feature_tensor.shape[0], 500, replace=False)
-            feature_tensor = feature_tensor[indices]
     else:
         # Use the epoch means
         print("Using epoch-wise feature means")

@@ -68,22 +68,22 @@ def visualize_results(losses, trained_model, test_data, target_feature, feature_
         # plt.legend()
         # plt.grid(True, alpha=0.3)
         # plt.show()
-        plot_error_distribution(predictions, actuals, target_feature)
+        # plot_error_distribution(predictions, actuals, target_feature)
         
         # # If we have feature_stats with predictions, show how predictions evolved over training
-        # if feature_stats is not None and hasattr(feature_stats, 'predicted_values'):
-        #     plot_error_distribution(predictions, actuals, target_feature)
-        #     plt.figure(figsize=(10, 6))
-        #     epochs = np.arange(len(feature_stats.predicted_values))
-        #     plt.plot(epochs, feature_stats.predicted_values.cpu().numpy(), 'b-', label='Predicted Values')
-        #     plt.plot(epochs, feature_stats.actual_values.cpu().numpy(), 'r-', label='Actual Values')
-        #     plt.xlabel('Epoch')
-        #     plt.ylabel('Value')
-        #     plt.title(f'Evolution of Predictions vs Actuals for {target_feature}')
-        #     plt.legend()
-        #     plt.grid(True, alpha=0.3)
-        #     plt.tight_layout()
-        #     plt.show()
+        if feature_stats is not None and hasattr(feature_stats, 'predicted_values'):
+            plot_error_distribution(predictions, actuals, target_feature)
+            plt.figure(figsize=(10, 6))
+            epochs = np.arange(len(feature_stats.predicted_values))
+            plt.plot(epochs, feature_stats.predicted_values.cpu().numpy(), 'b-', label='Predicted Values')
+            plt.plot(epochs, feature_stats.actual_values.cpu().numpy(), 'r-', label='Actual Values')
+            plt.xlabel('Epoch')
+            plt.ylabel('Value')
+            plt.title(f'Evolution of Predictions vs Actuals for {target_feature}')
+            plt.legend()
+            plt.grid(True, alpha=0.3)
+            plt.tight_layout()
+            plt.show()
 
 def plot_error_distribution(predictions, actuals, target_feature, log_scale=True):
     """
@@ -548,3 +548,42 @@ def visualize_pca(data, n_components=2, use_node_features=True):
     plt.show()
     
     return pca, principal_components
+
+def plot_feature_importance(importance_df, title="Permutation Feature Importance", figsize=(12, 8)):
+    """
+    Plot feature importance scores.
+    
+    Args:
+        importance_df: DataFrame with feature importance scores
+        title: Plot title
+        figsize: Figure size
+    """
+    plt.figure(figsize=figsize)
+    
+    # Create bar plot with error bars
+    bars = plt.barh(
+        importance_df['Feature'], 
+        importance_df['Importance'],
+        xerr=importance_df['Std'],
+        alpha=0.7,
+        color='skyblue',
+        edgecolor='navy',
+        linewidth=1.5,
+        capsize=5
+    )
+    
+    # Add labels and title
+    plt.xlabel('Importance Score (Change in Performance)', fontsize=14)
+    plt.ylabel('Feature', fontsize=14)
+    plt.title(title, fontsize=16)
+    
+    # Add grid lines
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    # Show the plot
+    plt.show()
+    
+    return plt

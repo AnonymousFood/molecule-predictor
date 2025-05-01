@@ -1,6 +1,6 @@
 TRAINING_CONFIG = {
     'graph_size': 100,
-    'num_epochs': 300,
+    'num_epochs': 100,
     'learning_rate': 0.0005,
     'weight_decay': 1e-4,
     'early_stopping': {
